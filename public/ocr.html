@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OCR - Identity Demo</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Override mirror effect for document capture so text is readable */
+        #ocr-video-container video {
+            transform: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" style="max-width: 600px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2>OCR & Validación Documental</h2>
+            <button onclick="window.location.href='/dashboard.html'" style="width: auto; padding: 5px 10px;">Volver</button>
+        </div>
+
+        <div id="alert-box" class="alert hidden"></div>
+
+        <!-- Camera Step -->
+        <div id="camera-step">
+            <div id="video-container" class="ocr-video-container">
+                <video id="video" autoplay playsinline muted></video>
+                <div class="guide-overlay doc-guide"></div>
+                <div id="overlay">Encuadra el documento</div>
+            </div>
+            <div style="text-align: center; margin-top: 15px;">
+                <p id="status-text" style="color: #666; margin-bottom: 10px;">Buscando documento...</p>
+                <button class="secondary" onclick="toggleMode('upload')">Subir archivo manual</button>
+            </div>
+        </div>
+
+        <!-- Upload Step (Hidden by default) -->
+        <div id="upload-step" class="hidden">
+            <form onsubmit="handleFileUpload(event)">
+                <div class="form-group">
+                    <label for="doc-image">Sube una imagen de tu documento (Cédula)</label>
+                    <input type="file" id="doc-image" accept="image/*" required onchange="previewImage(event)">
+                </div>
+                <div id="preview-container" class="hidden" style="margin-bottom: 15px; text-align: center;">
+                    <img id="preview" src="" alt="Preview" style="max-width: 100%; max-height: 200px; border-radius: 4px;">
+                </div>
+                <button type="submit" id="submit-btn">Procesar Documento</button>
+            </form>
+            <button class="secondary" onclick="toggleMode('camera')">Usar Cámara</button>
+        </div>
+
+        <div id="loading" class="hidden" style="text-align: center; margin-top: 20px;">
+            <p>Procesando imagen... (Esto puede tardar unos segundos)</p>
+        </div>
+
+        <div id="result-container" class="hidden">
+            <h3>Resultados:</h3>
+            <div id="ocr-result" class="result-box"></div>
+            <button onclick="location.reload()" class="secondary">Escanear otro documento</button>
+        </div>
+    </div>
+
+    <script src="utils.js"></script>
+    <script>
+        Utils.checkAuth();
+
+        let stream = null;
+        let isScanning = false;
+        let scanInterval = null;
+
+        // Initialize Camera on Load
+        window.addEventListener('load', () => {
+            startCamera();
+        });
+
+        async function startCamera() {
+            const video = document.getElementById('video');
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'environment', // Prefer back camera on mobile
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    } 
+                });
+                video.srcObject = stream;
+                // Start auto-scanning after camera is ready
+                startAutoScan();
+            } catch (err) {
+                console.error("Error accessing camera", err);
+                Utils.showError('alert-box', "No se pudo acceder a la cámara. Por favor usa la opción de subir archivo.");
+                toggleMode('upload');
+            }
+        }
+
+        function stopCamera() {
+            stopAutoScan();
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+        }
+
+        function startAutoScan() {
+            if (scanInterval) clearInterval(scanInterval);
+            document.getElementById('overlay').textContent = "Escaneando documento...";
+            
+            // Scan every 2 seconds to avoid server overload
+            scanInterval = setInterval(captureAndScan, 2000);
+        }
+
+        function stopAutoScan() {
+            if (scanInterval) {
+                clearInterval(scanInterval);
+                scanInterval = null;
+            }
+        }
+
+        function toggleMode(mode) {
+            document.getElementById('alert-box').classList.add('hidden');
+            if (mode === 'upload') {
+                stopCamera();
+                document.getElementById('camera-step').classList.add('hidden');
+                document.getElementById('upload-step').classList.remove('hidden');
+            } else {
+                document.getElementById('upload-step').classList.add('hidden');
+                document.getElementById('camera-step').classList.remove('hidden');
+                startCamera();
+            }
+        }
+
+        function previewImage(event) {
+            const reader = new FileReader();
+            reader.onload = function(){
+                const output = document.getElementById('preview');
+                output.src = reader.result;
+                document.getElementById('preview-container').classList.remove('hidden');
+            };
+            reader.readAsDataURL(event.target.files[0]);
+        }
+
+        // Renamed from captureDocument to support both manual and auto
+        async function captureAndScan() {
+            if (isScanning) return; // Prevent overlapping requests
+
+            const video = document.getElementById('video');
+            if (!stream || !video.videoWidth) return;
+
+            isScanning = true;
+            
+            // Visual feedback that scan is happening
+            const guide = document.querySelector('.doc-guide');
+            guide.style.borderColor = '#ffd700'; // Amber while processing
+
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0);
+
+            canvas.toBlob((blob) => {
+                processImage(blob, true); // true = isAutoMode
+            }, 'image/jpeg', 0.8); // Lower quality slightly for speed
+        }
+
+        function handleFileUpload(e) {
+            e.preventDefault();
+            const fileInput = document.getElementById('doc-image');
+            const file = fileInput.files[0];
+            if (file) {
+                processImage(file, false);
+            }
+        }
+
+        async function processImage(imageBlob, isAutoMode) {
+            if (!isAutoMode) {
+                stopCamera();
+                document.getElementById('loading').classList.remove('hidden');
+                document.getElementById('result-container').classList.add('hidden');
+            }
+
+            const formData = new FormData();
+            formData.append('document', imageBlob, 'document.jpg');
+
+            try {
+                const data = await Utils.request('/ocr/analyze', 'POST', formData, true);
+                
+                // If in auto mode, only stop if we found a valid document number
+                if (isAutoMode) {
+                    if (data.data && data.data.documentNumber) {
+                        // Success! Stop scanning
+                        stopAutoScan();
+                        const guide = document.querySelector('.doc-guide');
+                        guide.style.borderColor = '#00C851'; // Green
+                        document.getElementById('overlay').textContent = "¡Documento Detectado!";
+                        showResult(data);
+                    } else {
+                        // Keep scanning, reset border
+                        const guide = document.querySelector('.doc-guide');
+                        guide.style.borderColor = 'rgba(255, 255, 255, 0.8)';
+                    }
+                } else {
+                    // Manual mode always shows result
+                    showResult(data);
+                }
+                
+            } catch (error) {
+                console.error("Scan error", error);
+                if (!isAutoMode) {
+                    Utils.showError('alert-box', error.message);
+                }
+            } finally {
+                isScanning = false;
+                if (!isAutoMode) {
+                    document.getElementById('loading').classList.add('hidden');
+                }
+            }
+        }
+
+        async function showResult(data) {
+            document.getElementById('result-container').classList.remove('hidden');
+            
+            // Validation Logic
+            let validationHtml = '';
+            let headerClass = 'warning';
+            let headerTitle = 'Documento Detectado';
+            let headerIcon = '⚠️';
+            
+            if (data.data && data.data.documentNumber) {
+                try {
+                    const validation = await Utils.request('/validation/cedula', 'POST', { 
+                        documentNumber: data.data.documentNumber 
+                    });
+                    
+                    if (validation.status === 'VALID' || validation.isValid) {
+                        headerClass = 'success';
+                        headerTitle = 'Validación Exitosa';
+                        headerIcon = '✅';
+                    } else {
+                        headerClass = 'error';
+                        headerTitle = 'Validación Fallida';
+                        headerIcon = '❌';
+                    }
+
+                    validationHtml = `
+                        <div class="info-row">
+                            <span class="info-label">Estado Validación:</span>
+                            <span class="info-value" style="color: ${validation.status === 'VALID' || validation.isValid ? '#00C851' : '#ff4444'}">
+                                ${validation.status || (validation.isValid ? 'VÁLIDO' : 'INVÁLIDO')}
+                            </span>
+                        </div>
+                        ${validation.reason ? `
+                        <div class="info-row">
+                            <span class="info-label">Razón:</span>
+                            <span class="info-value">${validation.reason}</span>
+                        </div>` : ''}
+                        <div class="info-row">
+                            <span class="info-label">Fuente:</span>
+                            <span class="info-value">${validation.source || 'Simulador RNEC'}</span>
+                        </div>
+                    `;
+
+                } catch (valError) {
+                    headerClass = 'error';
+                    headerTitle = 'Error de Validación';
+                    headerIcon = '⚠️';
+                    validationHtml = `
+                        <div class="info-row">
+                            <span class="info-label">Error:</span>
+                            <span class="info-value">${valError.message}</span>
+                        </div>
+                    `;
+                }
+            } else {
+                 headerClass = 'warning';
+                 headerTitle = 'Lectura Parcial';
+                 headerIcon = '⚠️';
+                 validationHtml = `
+                    <div class="info-row">
+                        <span class="info-label">Nota:</span>
+                        <span class="info-value">No se detectó número para validar</span>
+                    </div>
+                 `;
+            }
+
+            // Construct Result Card
+            const html = `
+                <div class="result-card">
+                    <div class="result-header ${headerClass}">
+                        <span class="result-icon">${headerIcon}</span>
+                        <h3 class="result-title">${headerTitle}</h3>
+                    </div>
+                    <div class="result-body">
+                        ${data.data && data.data.documentNumber ? `
+                        <div class="info-row">
+                            <span class="info-label">Documento:</span>
+                            <span class="info-value">${data.data.documentNumber}</span>
+                        </div>
+                        ` : ''}
+                        
+                        ${data.data && data.data.dob ? `
+                        <div class="info-row">
+                            <span class="info-label">Fecha Nacimiento:</span>
+                            <span class="info-value">${data.data.dob}</span>
+                        </div>
+                        ` : ''}
+
+                        ${validationHtml}
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('ocr-result').innerHTML = html;
+            
+            // Scroll result into view
+            document.getElementById('result-container').scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>

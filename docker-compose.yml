@@ -1,0 +1,103 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    deploy:
+      replicas: 2
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - DATABASE_URL=postgresql://${DB_USER:-app_user}:${DB_PASSWORD:-supersecretpassword}@database:5432/${DB_NAME:-identity_auth}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - JWT_SECRET_FILE=/run/secrets/jwt_secret
+    volumes:
+      - uploads:/app/uploads
+      - logs:/app/logs
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      elasticsearch:
+        condition: service_healthy
+    secrets:
+      - jwt_secret
+    networks:
+      - frontend
+      - backend
+    restart: unless-stopped
+    
+  database:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=${DB_NAME:-identity_auth}
+      - POSTGRES_USER=${DB_USER:-app_user}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-supersecretpassword}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-app_user} -d ${DB_NAME:-identity_auth}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - backend
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server
+    volumes:
+      - redis_data:/data
+    networks:
+      - backend
+    restart: unless-stopped
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - elastic_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - backend
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - app
+    networks:
+      - frontend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  elastic_data:
+  uploads:
+  logs:
+
+networks:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge
+
+secrets:
+  jwt_secret:
+    file: ./secrets/jwt_secret.txt

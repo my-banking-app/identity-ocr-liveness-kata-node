@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Liveness Check - Identity Demo</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container" style="max-width: 600px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2>Prueba de Vida (Liveness)</h2>
+            <button onclick="window.location.href='/dashboard.html'" style="width: auto; padding: 5px 10px;">Volver</button>
+        </div>
+
+        <div id="alert-box" class="alert hidden"></div>
+
+        <div id="setup-step">
+            <p>Esta prueba validará que eres una persona real. Se te pedirá realizar una acción (Parpadear o Acercarte).</p>
+            <button onclick="startLiveness()">Iniciar Prueba</button>
+        </div>
+
+        <div id="process-step" class="hidden">
+            <div id="video-container">
+                <video id="video" autoplay playsinline muted></video>
+                <div class="guide-overlay face-guide"></div>
+                <div id="feedback-text">Posiciona tu rostro en el óvalo</div>
+                <div id="overlay">Inicializando...</div>
+            </div>
+            <p id="instruction" style="text-align: center; font-size: 1.2rem; font-weight: bold; margin-top: 15px;">Esperando...</p>
+        </div>
+
+        <div id="result-step" class="hidden">
+            <div id="final-result-card" style="text-align: center;">
+                <!-- Content injected by JS -->
+            </div>
+            <button onclick="location.reload()" style="margin-top: 20px;">Intentar de nuevo</button>
+        </div>
+    </div>
+
+    <script src="utils.js"></script>
+    <script>
+        Utils.checkAuth();
+
+        let sessionId = null;
+        let stream = null;
+        let intervalId = null;
+        let timeoutId = null;
+        let isProcessing = false;
+
+        async function startLiveness() {
+            try {
+                // 1. Start Session
+                const data = await Utils.request('/liveness/start-session', 'POST', {});
+                sessionId = data.sessionId;
+                const challenge = data.challenge;
+
+                // 2. Setup UI
+                document.getElementById('setup-step').classList.add('hidden');
+                document.getElementById('process-step').classList.remove('hidden');
+                
+                const instructionText = challenge === 'BLINK' ? '😉 PARPADEA VARIAS VECES' : '🔍 ACÉRCATE A LA CÁMARA';
+                document.getElementById('instruction').textContent = instructionText;
+                document.getElementById('overlay').textContent = challenge;
+
+                // 3. Start Camera
+                await startCamera();
+
+                // 4. Start Processing Loop
+                intervalId = setInterval(processFrame, 500); // Check every 500ms
+
+                // 5. Set Timeout (20 seconds)
+                timeoutId = setTimeout(() => {
+                    finishFail("Tiempo agotado. No se detectó la acción requerida.");
+                }, 20000);
+
+            } catch (error) {
+                Utils.showError('alert-box', error.message);
+            }
+        }
+
+        async function startCamera() {
+            const video = document.getElementById('video');
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+            } catch (err) {
+                console.error("Error accessing camera", err);
+                Utils.showError('alert-box', "No se pudo acceder a la cámara.");
+            }
+        }
+
+        async function processFrame() {
+            if (isProcessing) return;
+            isProcessing = true;
+
+            const video = document.getElementById('video');
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0);
+
+            canvas.toBlob(async (blob) => {
+                if (!blob) {
+                    isProcessing = false;
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('sessionId', sessionId);
+                formData.append('frame', blob, 'frame.jpg');
+
+                try {
+                    const data = await Utils.request('/liveness/validate-frame', 'POST', formData, true);
+                    
+                    if (data.result && data.result.isLive) {
+                        finishSuccess(data.result);
+                    } else if (data.result && data.result.details) {
+                        updateFeedback(data.result.details);
+                    }
+
+                } catch (error) {
+                    console.error("Frame processing error", error);
+                } finally {
+                    isProcessing = false;
+                }
+            }, 'image/jpeg');
+        }
+
+        function updateFeedback(details) {
+            const guide = document.querySelector('.face-guide');
+            const feedback = document.getElementById('feedback-text');
+            
+            if (details.faceDetected) {
+                // Check if we are waiting for a specific action
+                const currentChallenge = document.getElementById('overlay').textContent;
+                
+                if (details.blinkDetected) {
+                     guide.className = 'face-guide success';
+                     feedback.textContent = "¡Parpadeo detectado!";
+                } else {
+                     guide.className = 'face-guide detected';
+                     // Show score for debugging/tuning if needed, or just instructions
+                     // feedback.textContent = `Rostro detectado (${(details.score * 100).toFixed(0)}%). Esperando acción...`;
+                     feedback.textContent = currentChallenge.includes('PARPADEA') ? "Rostro detectado. Parpadea ahora." : "Rostro detectado. Acércate más.";
+                }
+            } else {
+                guide.className = 'face-guide error';
+                feedback.textContent = "No se detecta rostro. Centra tu cara en el óvalo.";
+            }
+        }
+
+        function stopProcessing() {
+            clearInterval(intervalId);
+            clearTimeout(timeoutId);
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+        }
+
+        function finishSuccess(result) {
+            stopProcessing();
+
+            document.getElementById('process-step').classList.add('hidden');
+            document.getElementById('result-step').classList.remove('hidden');
+            
+            const card = document.getElementById('final-result-card');
+            card.innerHTML = `
+                <div style="font-size: 4rem;">✅</div>
+                <h2 style="color: green;">Prueba Exitosa</h2>
+                <p>Identidad verificada correctamente.</p>
+                <div class="result-box" style="text-align: left; margin-top: 10px;">
+                    <strong>Score:</strong> ${(result.score * 100).toFixed(2)}%<br>
+                    <strong>ID Sesión:</strong> ${sessionId}
+                </div>
+            `;
+        }
+
+        function finishFail(reason) {
+            stopProcessing();
+
+            document.getElementById('process-step').classList.add('hidden');
+            document.getElementById('result-step').classList.remove('hidden');
+
+            const card = document.getElementById('final-result-card');
+            card.innerHTML = `
+                <div style="font-size: 4rem;">❌</div>
+                <h2 style="color: red;">Prueba Fallida</h2>
+                <p>${reason}</p>
+                <p>Por favor intenta nuevamente asegurando buena iluminación.</p>
+            `;
+        }
+    </script>
+</body>
+</html>
