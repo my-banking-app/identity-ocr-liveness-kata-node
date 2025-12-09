@@ -1,0 +1,28 @@
+name: CI/CD Pipeline – API Gateway
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  pipeline:
+    uses: my-banking-app/ci-templates/.github/workflows/node-ms-ci-cd.yml@v1.1.2
+    with:
+      service-name:        "API Kata"
+      docker-image-name:   "api-kata"
+      service-port:        "4000"
+      sonar-project-key:   "my-banking-app_identity-ocr-liveness-kata-node"
+      node-version:        "20"
+      install-command:     "pnpm install --frozen-lockfile"
+      test-command:        "pnpm test:cov"
+    secrets:
+      SONAR_TOKEN:        ${{ secrets.SONAR_TOKEN }}
+      DOCKER_USERNAME:    ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_PASSWORD:    ${{ secrets.DOCKER_PASSWORD }}
+      VPS_HOST:           ${{ secrets.VPS_HOST }}
+      VPS_USERNAME:       ${{ secrets.VPS_USERNAME }}
+      VPS_PRIVATE_KEY:    ${{ secrets.VPS_PRIVATE_KEY }}
+      API_KEY:            ${{ secrets.API_KEY }}
+      JWT_SECRET:         ${{ secrets.JWT_SECRET }}
