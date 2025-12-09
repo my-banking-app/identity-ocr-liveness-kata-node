@@ -17,12 +17,4 @@ export const config = {
     aesKey: process.env.AES_ENCRYPTION_KEY || '12345678901234567890123456789012',
     sessionSecret: process.env.SESSION_SECRET || 'default_session_secret',
   },
-  llm: {
-    provider: process.env.LLM_PROVIDER || 'openai', // 'openai' | 'anthropic' | 'ollama'
-    openaiApiKey: process.env.OPENAI_API_KEY || '',
-    anthropicApiKey: process.env.ANTHROPIC_API_KEY || '',
-    model: process.env.LLM_MODEL || 'gpt-3.5-turbo',
-    temperature: parseFloat(process.env.LLM_TEMPERATURE || '0.1'),
-    maxTokens: parseInt(process.env.LLM_MAX_TOKENS || '1000', 10),
-  },
 };

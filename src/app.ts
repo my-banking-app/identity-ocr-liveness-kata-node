@@ -12,7 +12,6 @@ import ocrRoutes from './routes/ocr.routes';
 import livenessRoutes from './routes/liveness.routes';
 import mlRoutes from './routes/ml.routes';
 import validationRoutes from './routes/validation.routes';
-import llmRoutes from './routes/llm.routes';
 import auditRoutes from './routes/audit.routes';
 import { MetricsService, httpRequestDurationMicroseconds } from './services/logging/metrics.service';
 
@@ -77,7 +76,6 @@ app.use('/api/ocr', ocrRoutes);
 app.use('/api/liveness', livenessRoutes);
 app.use('/api/ml', mlRoutes);
 app.use('/api/validation', validationRoutes);
-app.use('/api/llm', llmRoutes);
 app.use('/api/audit', auditRoutes);
 
 // Logging
