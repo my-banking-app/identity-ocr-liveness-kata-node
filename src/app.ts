@@ -13,6 +13,8 @@ import livenessRoutes from './routes/liveness.routes';
 import mlRoutes from './routes/ml.routes';
 import validationRoutes from './routes/validation.routes';
 import auditRoutes from './routes/audit.routes';
+import swaggerUi from 'swagger-ui-express';
+import { openapiSpec } from './docs/spec';
 import { MetricsService, httpRequestDurationMicroseconds } from './services/logging/metrics.service';
 
 const app = express();
@@ -77,6 +79,7 @@ app.use('/api/liveness', livenessRoutes);
 app.use('/api/ml', mlRoutes);
 app.use('/api/validation', validationRoutes);
 app.use('/api/audit', auditRoutes);
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(openapiSpec, { explorer: true }));
 
 // Logging
 app.use(
