@@ -67,7 +67,7 @@ export class DocumentAlgorithms {
       let sum = 0;
       let shouldDouble = false;
       for (let i = value.length - 1; i >= 0; i--) {
-        let digit = parseInt(value.charAt(i));
+        let digit = Number.parseInt(value.charAt(i));
   
         if (shouldDouble) {
           if ((digit *= 2) > 9) digit -= 9;

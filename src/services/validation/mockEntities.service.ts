@@ -10,7 +10,7 @@ export class MockEntitiesService {
     await randomDelay(1000); // Simulate network latency
 
     // Deterministic mock based on number ending
-    const lastDigit = parseInt(documentNumber.slice(-1));
+    const lastDigit = Number.parseInt(documentNumber.slice(-1));
     
     if (lastDigit === 2) {
       return {

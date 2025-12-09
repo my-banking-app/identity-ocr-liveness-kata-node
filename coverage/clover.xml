@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1765322860712" clover="3.2.0">
-  <project timestamp="1765322860712" name="All files">
-    <metrics statements="836" coveredstatements="676" conditionals="389" coveredconditionals="224" methods="102" coveredmethods="80" elements="1327" coveredelements="980" complexity="0" loc="836" ncloc="836" packages="14" files="35" classes="35"/>
+<coverage generated="1765324093228" clover="3.2.0">
+  <project timestamp="1765324093228" name="All files">
+    <metrics statements="837" coveredstatements="676" conditionals="389" coveredconditionals="224" methods="104" coveredmethods="80" elements="1330" coveredelements="980" complexity="0" loc="837" ncloc="837" packages="14" files="35" classes="35"/>
     <package name="src">
       <metrics statements="56" coveredstatements="54" conditionals="2" coveredconditionals="2" methods="7" coveredmethods="6"/>
       <file name="app.ts" path="/Users/criss/Desktop/kata/identity-ocr-liveness-kata-node/src/app.ts">
@@ -65,26 +65,24 @@
       </file>
     </package>
     <package name="src.config">
-      <metrics statements="21" coveredstatements="13" conditionals="28" coveredconditionals="15" methods="3" coveredmethods="1"/>
+      <metrics statements="19" coveredstatements="12" conditionals="28" coveredconditionals="15" methods="3" coveredmethods="1"/>
       <file name="database.ts" path="/Users/criss/Desktop/kata/identity-ocr-liveness-kata-node/src/config/database.ts">
-        <metrics statements="17" coveredstatements="9" conditionals="4" coveredconditionals="1" methods="3" coveredmethods="1"/>
+        <metrics statements="15" coveredstatements="8" conditionals="4" coveredconditionals="1" methods="3" coveredmethods="1"/>
         <line num="1" count="7" type="stmt"/>
         <line num="2" count="7" type="stmt"/>
         <line num="3" count="7" type="stmt"/>
         <line num="5" count="7" type="stmt"/>
-        <line num="9" count="7" type="cond" truecount="1" falsecount="1"/>
-        <line num="11" count="0" type="stmt"/>
-        <line num="13" count="0" type="stmt"/>
-        <line num="29" count="7" type="stmt"/>
+        <line num="7" count="7" type="cond" truecount="1" falsecount="1"/>
+        <line num="10" count="0" type="stmt"/>
+        <line num="27" count="8" type="stmt"/>
         <line num="30" count="7" type="stmt"/>
-        <line num="33" count="8" type="stmt"/>
-        <line num="39" count="7" type="stmt"/>
+        <line num="32" count="7" type="stmt"/>
+        <line num="33" count="0" type="stmt"/>
+        <line num="34" count="0" type="stmt"/>
+        <line num="35" count="0" type="stmt"/>
+        <line num="37" count="0" type="stmt"/>
+        <line num="38" count="0" type="stmt"/>
         <line num="40" count="0" type="stmt"/>
-        <line num="41" count="0" type="stmt"/>
-        <line num="42" count="0" type="stmt"/>
-        <line num="44" count="0" type="stmt"/>
-        <line num="45" count="0" type="stmt"/>
-        <line num="47" count="0" type="stmt"/>
       </file>
       <file name="env.ts" path="/Users/criss/Desktop/kata/identity-ocr-liveness-kata-node/src/config/env.ts">
         <metrics statements="3" coveredstatements="3" conditionals="20" coveredconditionals="10" methods="0" coveredmethods="0"/>
@@ -396,9 +394,9 @@
       </file>
     </package>
     <package name="src.routes">
-      <metrics statements="116" coveredstatements="82" conditionals="21" coveredconditionals="2" methods="12" coveredmethods="4"/>
+      <metrics statements="118" coveredstatements="82" conditionals="21" coveredconditionals="2" methods="14" coveredmethods="4"/>
       <file name="audit.routes.ts" path="/Users/criss/Desktop/kata/identity-ocr-liveness-kata-node/src/routes/audit.routes.ts">
-        <metrics statements="41" coveredstatements="10" conditionals="19" coveredconditionals="0" methods="6" coveredmethods="0"/>
+        <metrics statements="43" coveredstatements="10" conditionals="19" coveredconditionals="0" methods="8" coveredmethods="0"/>
         <line num="1" count="7" type="stmt"/>
         <line num="2" count="7" type="stmt"/>
         <line num="3" count="7" type="stmt"/>
@@ -424,6 +422,7 @@
         <line num="41" count="0" type="stmt"/>
         <line num="45" count="0" type="stmt"/>
         <line num="46" count="0" type="stmt"/>
+        <line num="47" count="0" type="stmt"/>
         <line num="49" count="0" type="cond" truecount="0" falsecount="2"/>
         <line num="51" count="0" type="stmt"/>
         <line num="52" count="0" type="stmt"/>
@@ -434,6 +433,7 @@
         <line num="60" count="0" type="cond" truecount="0" falsecount="2"/>
         <line num="62" count="0" type="stmt"/>
         <line num="63" count="0" type="stmt"/>
+        <line num="64" count="0" type="stmt"/>
         <line num="66" count="0" type="cond" truecount="0" falsecount="2"/>
         <line num="68" count="0" type="stmt"/>
         <line num="69" count="0" type="stmt"/>
@@ -533,7 +533,7 @@
       </file>
     </package>
     <package name="src.services">
-      <metrics statements="208" coveredstatements="175" conditionals="74" coveredconditionals="54" methods="27" coveredmethods="23"/>
+      <metrics statements="209" coveredstatements="176" conditionals="74" coveredconditionals="54" methods="27" coveredmethods="23"/>
       <file name="auth.service.ts" path="/Users/criss/Desktop/kata/identity-ocr-liveness-kata-node/src/services/auth.service.ts">
         <metrics statements="43" coveredstatements="41" conditionals="14" coveredconditionals="11" methods="9" coveredmethods="9"/>
         <line num="1" count="8" type="stmt"/>
@@ -581,30 +581,31 @@
         <line num="114" count="4" type="stmt"/>
       </file>
       <file name="crypto.service.ts" path="/Users/criss/Desktop/kata/identity-ocr-liveness-kata-node/src/services/crypto.service.ts">
-        <metrics statements="23" coveredstatements="23" conditionals="0" coveredconditionals="0" methods="4" coveredmethods="4"/>
+        <metrics statements="24" coveredstatements="24" conditionals="0" coveredconditionals="0" methods="4" coveredmethods="4"/>
         <line num="1" count="19" type="stmt"/>
         <line num="2" count="19" type="stmt"/>
         <line num="3" count="19" type="stmt"/>
         <line num="5" count="19" type="stmt"/>
         <line num="6" count="19" type="stmt"/>
         <line num="8" count="19" type="stmt"/>
+        <line num="10" count="5" type="stmt"/>
+        <line num="11" count="5" type="stmt"/>
+        <line num="12" count="5" type="stmt"/>
         <line num="13" count="5" type="stmt"/>
         <line num="14" count="5" type="stmt"/>
         <line num="15" count="5" type="stmt"/>
-        <line num="16" count="5" type="stmt"/>
-        <line num="17" count="5" type="stmt"/>
-        <line num="18" count="5" type="stmt"/>
+        <line num="19" count="3" type="stmt"/>
+        <line num="20" count="3" type="stmt"/>
+        <line num="21" count="3" type="stmt"/>
+        <line num="22" count="3" type="stmt"/>
+        <line num="23" count="3" type="stmt"/>
+        <line num="24" count="3" type="stmt"/>
         <line num="25" count="3" type="stmt"/>
         <line num="26" count="3" type="stmt"/>
         <line num="27" count="3" type="stmt"/>
-        <line num="28" count="3" type="stmt"/>
-        <line num="29" count="3" type="stmt"/>
-        <line num="30" count="3" type="stmt"/>
-        <line num="31" count="3" type="stmt"/>
-        <line num="32" count="3" type="stmt"/>
-        <line num="39" count="6" type="stmt"/>
-        <line num="40" count="6" type="stmt"/>
-        <line num="47" count="7" type="stmt"/>
+        <line num="34" count="6" type="stmt"/>
+        <line num="35" count="6" type="stmt"/>
+        <line num="42" count="7" type="stmt"/>
       </file>
       <file name="imagePreprocessing.service.ts" path="/Users/criss/Desktop/kata/identity-ocr-liveness-kata-node/src/services/imagePreprocessing.service.ts">
         <metrics statements="16" coveredstatements="14" conditionals="12" coveredconditionals="10" methods="2" coveredmethods="2"/>

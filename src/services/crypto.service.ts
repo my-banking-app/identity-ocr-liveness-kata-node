@@ -2,34 +2,29 @@ import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { config } from '../config/env';
 
-const ALGORITHM = 'aes-256-cbc';
-const IV_LENGTH = 16; // For AES, this is always 16
+const ALGORITHM = 'aes-256-gcm';
+const IV_LENGTH = 12;
 
 export class CryptoService {
-  /**
-   * Encrypts a text using AES-256-CBC
-   */
   static encrypt(text: string): string {
     const iv = crypto.randomBytes(IV_LENGTH);
     const key = Buffer.from(config.security.aesKey);
     const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
-    let encrypted = cipher.update(text);
-    encrypted = Buffer.concat([encrypted, cipher.final()]);
-    return iv.toString('hex') + ':' + encrypted.toString('hex');
+    const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
+    const tag = cipher.getAuthTag();
+    return `${iv.toString('hex')}:${tag.toString('hex')}:${encrypted.toString('hex')}`;
   }
 
-  /**
-   * Decrypts a text using AES-256-CBC
-   */
   static decrypt(text: string): string {
-    const textParts = text.split(':');
-    const iv = Buffer.from(textParts.shift()!, 'hex');
-    const encryptedText = Buffer.from(textParts.join(':'), 'hex');
+    const parts = text.split(':');
+    const iv = Buffer.from(parts[0], 'hex');
+    const tag = Buffer.from(parts[1], 'hex');
+    const encryptedText = Buffer.from(parts[2], 'hex');
     const key = Buffer.from(config.security.aesKey);
     const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
-    let decrypted = decipher.update(encryptedText);
-    decrypted = Buffer.concat([decrypted, decipher.final()]);
-    return decrypted.toString();
+    decipher.setAuthTag(tag);
+    const decrypted = Buffer.concat([decipher.update(encryptedText), decipher.final()]);
+    return decrypted.toString('utf8');
   }
 
   /**

@@ -50,7 +50,7 @@ export class OCRService {
         
         for (const match of potentialMatches) {
             const raw = match[1];
-            const clean = raw.replace(/[^\d]/g, '');
+            const clean = raw.replaceAll(/[^\d]/g, '');
             // Check if length is valid for an ID (7 to 10 digits)
             if (clean.length >= 7 && clean.length <= 10) {
                 // If we found a valid length, use it.
@@ -72,7 +72,7 @@ export class OCRService {
 
     // Ensure documentNumber is set if idMatch was found in step 1
     if (idMatch && !data.documentNumber) {
-        data.documentNumber = idMatch[1].replace(/[^\d]/g, '');
+        data.documentNumber = idMatch[1].replaceAll(/[^\d]/g, '');
     }
 
     // Name - Very hard without strict template, looking for uppercase lines

@@ -44,7 +44,7 @@ router.get('/logs', authenticateToken, (req, res) => {
     // Get most recent application log
     const files = fs.readdirSync(logDir)
         .filter(f => f.startsWith('application-'))
-        .sort().reverse();
+        .sort((a, b) => a.localeCompare(b)).reverse();
 
     if (files.length === 0) return res.json({ logs: [] });
 
@@ -61,7 +61,7 @@ router.get('/security-logs', authenticateToken, (req, res) => {
 
     const files = fs.readdirSync(logDir)
         .filter(f => f.startsWith('security-'))
-        .sort().reverse();
+        .sort((a, b) => a.localeCompare(b)).reverse();
 
     if (files.length === 0) return res.json({ logs: [] });
 
