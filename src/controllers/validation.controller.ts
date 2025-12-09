@@ -4,6 +4,7 @@ import { DocumentAlgorithms } from '../utils/validation/documentAlgorithms.utils
 import { FaceMatchService } from '../services/validation/faceMatch.service';
 import logger from '../utils/logger';
 import { documentValidationCounter } from '../services/logging/metrics.service';
+import { AuditService } from '../services/logging/audit.service';
 
 export class ValidationController {
   
@@ -12,6 +13,18 @@ export class ValidationController {
     if (!documentNumber) return res.status(400).json({ error: 'Document number required' });
 
     const result = await DocumentRepositoryService.validateDocument(documentNumber, 'cedula');
+    try {
+      const labelResult = result.source === 'BLACKLIST' ? 'blacklisted' : (result.isValid ? 'valid' : 'invalid');
+      documentValidationCounter.labels('cedula', labelResult).inc();
+      AuditService.logBusinessEvent({
+        action: 'DOCUMENT_VALIDATION',
+        resource: 'CEDULA',
+        userId: (req as any).user?.userId,
+        result: (labelResult === 'valid') ? 'SUCCESS' : 'FAILURE',
+        details: { documentNumber, status: result.isValid ? 'VALID' : 'INVALID', source: result.source, reason: (result as any).details?.reason || (typeof (result as any).details === 'string' ? (result as any).details : undefined) },
+        sensitive: true,
+      });
+    } catch {}
     res.json(result);
   }
 

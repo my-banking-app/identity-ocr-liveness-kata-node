@@ -25,4 +25,10 @@ router.get(
   LivenessController.getSession
 );
 
+router.post(
+  '/finalize',
+  authenticateToken,
+  LivenessController.finalizeSession
+);
+
 export default router;

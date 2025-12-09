@@ -198,6 +198,10 @@
             const card = document.getElementById('final-result-card');
             const base = { liveness: { passed: false, reason } };
             card.innerHTML = buildIdentityCard(base, null);
+
+            try {
+                Utils.request('/liveness/finalize','POST', { sessionId, reason });
+            } catch {}
         }
 
         function captureCurrentFrame() {
