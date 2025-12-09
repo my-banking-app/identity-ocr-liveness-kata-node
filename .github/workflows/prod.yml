@@ -8,15 +8,15 @@ on:
 
 jobs:
   pipeline:
-    uses: my-banking-app/ci-templates/.github/workflows/node-ms-ci-cd.yml@v1.1.2
+    uses: my-banking-app/ci-templates/.github/workflows/node-ms-ci-cd.yml@v1.1.3
     with:
-      service-name:        "API Kata"
-      docker-image-name:   "api-kata"
-      service-port:        "4000"
+      service-name:        "Identity OCR Liveness API"
+      docker-image-name:   "identity-ocr-liveness-kata-node"
+      service-port:        "3000"
       sonar-project-key:   "my-banking-app_identity-ocr-liveness-kata-node"
       node-version:        "20"
-      install-command:     "pnpm install --frozen-lockfile"
-      test-command:        "pnpm test:cov"
+      install-command:     "npm ci"
+      test-command:        "npm run test:coverage"
     secrets:
       SONAR_TOKEN:        ${{ secrets.SONAR_TOKEN }}
       DOCKER_USERNAME:    ${{ secrets.DOCKER_USERNAME }}
