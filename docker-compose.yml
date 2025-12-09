@@ -4,8 +4,6 @@ services:
       context: .
       dockerfile: Dockerfile
       target: production
-    deploy:
-      replicas: 2
     environment:
       - NODE_ENV=${NODE_ENV:-production}
       - DATABASE_URL=postgresql://${DB_USER:-app_user}:${DB_PASSWORD:-supersecretpassword}@database:5432/${DB_NAME:-identity_auth}
