@@ -164,6 +164,34 @@
                     <strong>ID Sesión:</strong> ${sessionId}
                 </div>
             `;
+
+            // Intentar comparación facial contra documento
+            try {
+                const docDataURL = localStorage.getItem('lastDocImage');
+                if (docDataURL) {
+                    const liveBlob = captureCurrentFrame();
+                    const docBlob = dataURLToBlob(docDataURL);
+                    const fd = new FormData();
+                    fd.append('doc', docBlob, 'doc.jpg');
+                    fd.append('live', liveBlob, 'live.jpg');
+                    Utils.request('/validation/face-match', 'POST', fd, true).then((fm) => {
+                        const extra = document.createElement('div');
+                        extra.className = 'result-box';
+                        extra.style.marginTop = '10px';
+                        extra.innerHTML = `
+                            <div class="info-row">
+                                <span class="info-label">Comparación Facial:</span>
+                                <span class="info-value" style="color:${fm.match ? '#00C851' : '#ff4444'}">${fm.match ? 'COINCIDE' : 'NO COINCIDE'}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Score:</span>
+                                <span class="info-value">${(fm.score * 100).toFixed(1)}%</span>
+                            </div>
+                        `;
+                        card.appendChild(extra);
+                    }).catch(() => {});
+                }
+            } catch {}
         }
 
         function finishFail(reason) {
@@ -179,6 +207,35 @@
                 <p>${reason}</p>
                 <p>Por favor intenta nuevamente asegurando buena iluminación.</p>
             `;
+        }
+
+        function captureCurrentFrame() {
+            const video = document.getElementById('video');
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0);
+            const blob = canvasToBlobSync(canvas);
+            return blob;
+        }
+
+        function canvasToBlobSync(canvas) {
+            // Create a synchronous blob via dataURL for simplicity
+            const dataURL = canvas.toDataURL('image/jpeg', 0.9);
+            return dataURLToBlob(dataURL);
+        }
+
+        function dataURLToBlob(dataURL) {
+            const parts = dataURL.split(',');
+            const mime = parts[0].match(/:(.*?);/)[1];
+            const bstr = atob(parts[1]);
+            let n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            while (n--) {
+              u8arr[n] = bstr.charCodeAt(n);
+            }
+            return new Blob([u8arr], { type: mime });
         }
     </script>
 </body>

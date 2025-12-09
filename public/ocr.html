@@ -184,6 +184,12 @@
 
             try {
                 const data = await Utils.request('/ocr/analyze', 'POST', formData, true);
+                // Persist doc image for posterior face-match
+                const reader = new FileReader();
+                reader.onload = () => {
+                    try { localStorage.setItem('lastDocImage', reader.result); } catch {}
+                };
+                reader.readAsDataURL(imageBlob);
                 
                 // If in auto mode, only stop if we found a valid document number
                 if (isAutoMode) {
@@ -314,6 +320,12 @@
             
             // Scroll result into view
             document.getElementById('result-container').scrollIntoView({ behavior: 'smooth' });
+            // Sugerir continuar a liveness
+            const cta = document.createElement('button');
+            cta.textContent = 'Continuar a Prueba de Vida';
+            cta.style.marginTop = '10px';
+            cta.onclick = () => window.location.href = '/liveness.html';
+            document.getElementById('ocr-result').appendChild(cta);
         }
     </script>
 </body>

@@ -1,6 +1,9 @@
 import { Request, Response } from 'express';
 import { DocumentRepositoryService } from '../services/validation/documentRepository.service';
 import { DocumentAlgorithms } from '../utils/validation/documentAlgorithms.utils';
+import { FaceMatchService } from '../services/validation/faceMatch.service';
+import logger from '../utils/logger';
+import { documentValidationCounter } from '../services/logging/metrics.service';
 
 export class ValidationController {
   
@@ -63,5 +66,25 @@ export class ValidationController {
           issueDate
       });
       res.json(result);
+  }
+
+  static async faceMatch(req: Request, res: Response) {
+    try {
+      const files = (req as any).files as { [fieldname: string]: any[] } | any[] | undefined;
+      const docFromFiles = Array.isArray(files) ? undefined : files?.['doc']?.[0]?.buffer;
+      const liveFromFiles = Array.isArray(files) ? undefined : files?.['live']?.[0]?.buffer;
+      const doc = (req as any).fileDoc?.buffer || docFromFiles || (req as any).docBuffer;
+      const live = (req as any).fileLive?.buffer || liveFromFiles || (req as any).liveBuffer;
+      if (!doc || !live) {
+        return res.status(400).json({ error: 'Both doc and live images are required' });
+      }
+
+      const result = await FaceMatchService.compare(doc, live);
+      documentValidationCounter.labels('face_match', result.match ? 'match' : 'no_match').inc();
+      res.json(result);
+    } catch (error: any) {
+      logger.error('Face match error', error);
+      res.status(500).json({ error: error.message });
+    }
   }
 }
