@@ -8,7 +8,7 @@ on:
 
 jobs:
   pipeline:
-    uses: my-banking-app/ci-templates/.github/workflows/node-api-ci-cd.yml@v1.1.4
+    uses: my-banking-app/ci-templates/.github/workflows/node-api-ci-cd.yml@v1.1.5
     with:
       service-name:        "Identity OCR Liveness API"
       docker-image-name:   "identity-ocr-liveness-kata-node"
