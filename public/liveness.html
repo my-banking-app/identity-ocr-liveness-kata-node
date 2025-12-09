@@ -9,7 +9,7 @@
 <body>
     <div class="container" style="max-width: 600px;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h2>Prueba de Vida (Liveness)</h2>
+            <h2>Autenticación · Paso 2/2 (Liveness)</h2>
             <button onclick="window.location.href='/dashboard.html'" style="width: auto; padding: 5px 10px;">Volver</button>
         </div>
 
@@ -41,6 +41,12 @@
     <script src="utils.js"></script>
     <script>
         Utils.checkAuth();
+        try {
+            const hasDoc = !!localStorage.getItem('lastDocImage');
+            if (!hasDoc) {
+                Utils.showSuccess('alert-box', 'Modo demo: sin documento. Solo se validará la prueba de vida.');
+            }
+        } catch {}
 
         let sessionId = null;
         let stream = null;
@@ -155,15 +161,11 @@
             document.getElementById('result-step').classList.remove('hidden');
             
             const card = document.getElementById('final-result-card');
-            card.innerHTML = `
-                <div style="font-size: 4rem;">✅</div>
-                <h2 style="color: green;">Prueba Exitosa</h2>
-                <p>Identidad verificada correctamente.</p>
-                <div class="result-box" style="text-align: left; margin-top: 10px;">
-                    <strong>Score:</strong> ${(result.score * 100).toFixed(2)}%<br>
-                    <strong>ID Sesión:</strong> ${sessionId}
-                </div>
-            `;
+            const base = {
+                liveness: { passed: true, score: (result.score * 100).toFixed(2) },
+                doc: getStored('lastDocValidation'),
+            };
+            card.innerHTML = buildIdentityCard(base, null);
 
             // Intentar comparación facial contra documento
             try {
@@ -174,22 +176,15 @@
                     const fd = new FormData();
                     fd.append('doc', docBlob, 'doc.jpg');
                     fd.append('live', liveBlob, 'live.jpg');
+                    card.innerHTML = buildIdentityCard(base, { match: null, pending: true });
                     Utils.request('/validation/face-match', 'POST', fd, true).then((fm) => {
-                        const extra = document.createElement('div');
-                        extra.className = 'result-box';
-                        extra.style.marginTop = '10px';
-                        extra.innerHTML = `
-                            <div class="info-row">
-                                <span class="info-label">Comparación Facial:</span>
-                                <span class="info-value" style="color:${fm.match ? '#00C851' : '#ff4444'}">${fm.match ? 'COINCIDE' : 'NO COINCIDE'}</span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label">Score:</span>
-                                <span class="info-value">${(fm.score * 100).toFixed(1)}%</span>
-                            </div>
-                        `;
-                        card.appendChild(extra);
-                    }).catch(() => {});
+                        const updated = buildIdentityCard(base, fm);
+                        card.innerHTML = updated;
+                    }).catch(() => {
+                        card.innerHTML = buildIdentityCard(base, { match: null, error: 'FACE_MATCH_ERROR' });
+                    });
+                } else {
+                    card.innerHTML = buildIdentityCard(base, { match: null, error: 'DOC_IMAGE_MISSING' });
                 }
             } catch {}
         }
@@ -201,12 +196,8 @@
             document.getElementById('result-step').classList.remove('hidden');
 
             const card = document.getElementById('final-result-card');
-            card.innerHTML = `
-                <div style="font-size: 4rem;">❌</div>
-                <h2 style="color: red;">Prueba Fallida</h2>
-                <p>${reason}</p>
-                <p>Por favor intenta nuevamente asegurando buena iluminación.</p>
-            `;
+            const base = { liveness: { passed: false, reason } };
+            card.innerHTML = buildIdentityCard(base, null);
         }
 
         function captureCurrentFrame() {
@@ -236,6 +227,48 @@
               u8arr[n] = bstr.charCodeAt(n);
             }
             return new Blob([u8arr], { type: mime });
+        }
+
+        function getStored(key) {
+            try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : null; } catch { return null; }
+        }
+
+        function buildIdentityCard(base, fm) {
+            const docStatus = base.doc ? (base.doc.status || (base.doc.isValid ? 'VALID' : 'INVALID')) : '-';
+            const livenessPassed = !!(base.liveness && base.liveness.passed);
+            const fmMatch = fm ? fm.match : null;
+            const reasons = [];
+            if (!livenessPassed) reasons.push(base.liveness.reason || 'Fallo en prueba de vida');
+            if (docStatus === 'INVALID') reasons.push('Documento inválido');
+            if (base.doc && base.doc.source === 'BLACKLIST') reasons.push('Documento en lista negra');
+            if (fm && fm.reason === 'FACE_NOT_DETECTED') reasons.push('Rostro no detectado en imágenes');
+            if (fm && fm.error === 'DOC_IMAGE_MISSING') reasons.push('Sin imagen de documento');
+            if (fm && fm.error === 'FACE_MATCH_ERROR') reasons.push('Error en comparación facial');
+            if (fmMatch === false) reasons.push('Rostro no coincide con documento');
+            const success = livenessPassed && (base.doc ? (docStatus === 'VALID') : true) && fmMatch !== false;
+            const headerClass = success ? 'success' : (reasons.length ? 'error' : 'warning');
+            const headerTitle = success ? 'Identidad Verificada' : (reasons.length ? 'Identidad No Verificada' : 'Verificación Parcial');
+            const headerIcon = success ? '✅' : (reasons.length ? '❌' : '⚠️');
+            const docLabelColor = base.doc ? (docStatus === 'VALID' ? '#00C851' : (docStatus === 'INVALID' ? '#ff4444' : '#FF8800')) : '#666';
+            const fmColor = fm && fm.pending ? '#FF8800' : (fmMatch === null ? '#FF8800' : (fmMatch ? '#00C851' : '#ff4444'));
+            const fmText = fm && fm.pending ? 'EN PROCESO…' : (fmMatch === null ? 'NO DISPONIBLE' : (fmMatch ? 'COINCIDE' : 'NO COINCIDE'));
+            const livenessText = livenessPassed ? `OK (${base.liveness.score}%)` : 'FALLÓ';
+            const reasonsHtml = reasons.length ? `<div class="info-row"><span class="info-label">Causas:</span><span class="info-value">${reasons.join('; ')}</span></div>` : '';
+            const docHtml = base.doc ? `<div class="info-row"><span class="info-label">Documento:</span><span class="info-value" style="color:${docLabelColor}">${docStatus}</span></div>` : '';
+            return `
+                <div class="result-card">
+                    <div class="result-header ${headerClass}">
+                        <span class="result-icon">${headerIcon}</span>
+                        <h3 class="result-title">${headerTitle}</h3>
+                    </div>
+                    <div class="result-body">
+                        ${docHtml}
+                        <div class="info-row"><span class="info-label">Prueba de vida:</span><span class="info-value">${livenessText}</span></div>
+                        <div class="info-row"><span class="info-label">Comparación facial:</span><span class="info-value" style="color:${fmColor}">${fmText}${fm && fm.score !== undefined ? ` (${(fm.score * 100).toFixed(1)}%)` : ''}</span></div>
+                        ${reasonsHtml}
+                    </div>
+                </div>
+            `;
         }
     </script>
 </body>

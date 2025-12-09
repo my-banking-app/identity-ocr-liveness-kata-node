@@ -15,7 +15,7 @@
 <body>
     <div class="container" style="max-width: 600px;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h2>OCR & Validación Documental</h2>
+            <h2>Autenticación · Paso 1/2 (OCR)</h2>
             <button onclick="window.location.href='/dashboard.html'" style="width: auto; padding: 5px 10px;">Volver</button>
         </div>
 
@@ -184,6 +184,8 @@
 
             try {
                 const data = await Utils.request('/ocr/analyze', 'POST', formData, true);
+                try { localStorage.setItem('lastDocMeta', JSON.stringify(data)); } catch {}
+                
                 // Persist doc image for posterior face-match
                 const reader = new FileReader();
                 reader.onload = () => {
@@ -231,21 +233,29 @@
             let headerClass = 'warning';
             let headerTitle = 'Documento Detectado';
             let headerIcon = '⚠️';
+            let isValidDoc = false;
             
             if (data.data && data.data.documentNumber) {
                 try {
                     const validation = await Utils.request('/validation/cedula', 'POST', { 
                         documentNumber: data.data.documentNumber 
                     });
+                    try { localStorage.setItem('lastDocValidation', JSON.stringify(validation)); } catch {}
                     
                     if (validation.status === 'VALID' || validation.isValid) {
                         headerClass = 'success';
                         headerTitle = 'Validación Exitosa';
                         headerIcon = '✅';
+                        isValidDoc = true;
                     } else {
                         headerClass = 'error';
                         headerTitle = 'Validación Fallida';
                         headerIcon = '❌';
+                        isValidDoc = false;
+                        try {
+                            localStorage.removeItem('lastDocImage');
+                            localStorage.removeItem('lastDocValidation');
+                        } catch {}
                     }
 
                     validationHtml = `
@@ -320,11 +330,15 @@
             
             // Scroll result into view
             document.getElementById('result-container').scrollIntoView({ behavior: 'smooth' });
-            // Sugerir continuar a liveness
             const cta = document.createElement('button');
-            cta.textContent = 'Continuar a Prueba de Vida';
             cta.style.marginTop = '10px';
-            cta.onclick = () => window.location.href = '/liveness.html';
+            if (isValidDoc) {
+                cta.textContent = 'Continuar a Prueba de Vida';
+                cta.onclick = () => window.location.href = '/liveness.html';
+            } else {
+                cta.textContent = 'Documento inválido. No puedes continuar';
+                cta.disabled = true;
+            }
             document.getElementById('ocr-result').appendChild(cta);
         }
     </script>

@@ -33,14 +33,18 @@ const Utils = {
                 window.location.href = '/index.html';
                 return;
             }
-
-            const data = await response.json();
-            
-            if (!response.ok) {
-                throw new Error(data.error || data.message || 'Something went wrong');
+            const contentType = response.headers.get('content-type') || '';
+            let payload;
+            if (contentType.includes('application/json')) {
+                payload = await response.json();
+            } else {
+                const text = await response.text();
+                try { payload = JSON.parse(text); } catch { payload = { message: text }; }
             }
-
-            return data;
+            if (!response.ok) {
+                throw new Error(payload.error || payload.message || `HTTP ${response.status}`);
+            }
+            return payload;
         } catch (error) {
             console.error('API Request failed', error);
             throw error;
