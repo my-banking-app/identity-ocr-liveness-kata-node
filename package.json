@@ -1,0 +1,20 @@
+{
+  "name": "identity-ocr-liveness-kata-node",
+  "version": "1.0.0",
+  "description": "Lightweight prototype API for OCR, liveness detection, and audit logging.",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node src/server.js",
+    "test": "node --test"
+  },
+  "keywords": ["ocr", "liveness", "audit", "jwt", "node20"],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

@@ -1,0 +1,15 @@
+version: '3.9'
+services:
+  api:
+    image: node:20
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: ["node", "src/server.js"]
+    environment:
+      - PORT=${PORT:-3000}
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-signing-key}
+      - AUDIT_LOG_KEY=${AUDIT_LOG_KEY:-b962f1e0b962f1e0b962f1e0b962f1e0b962f1e0b962f1e0b962f1e0b962f1e0}
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
+    restart: unless-stopped
