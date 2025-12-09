@@ -50,7 +50,7 @@ describe('LivenessService', () => {
       expect(session).toHaveProperty('id');
       expect(session.userId).toBe('user-123');
       expect(session.status).toBe('PENDING');
-      expect(['BLINK', 'ZOOM_IN']).toContain(session.challenge);
+      expect(session.challenge).toBe('ZOOM_IN');
     });
   });
 
@@ -106,50 +106,7 @@ describe('LivenessService', () => {
       expect(result.details?.faceDetected).toBe(false);
     });
 
-    it('should detect blinking', async () => {
-      // Force BLINK challenge
-      let session;
-      do {
-        session = await LivenessService.createSession('user-blink');
-      } while (session.challenge !== 'BLINK');
-      
-      // 1. Open Eyes (EAR = 0.5)
-      let result = await LivenessService.processFrame(session.id, Buffer.from('img'));
-      expect(result.isLive).toBe(false);
-
-      // 2. Closed Eyes (EAR = 0.1)
-      // EAR = (2 + 2) / (2 * 20) = 0.1
-      const closedEyeLeft = [
-        { x: 0, y: 10 }, { x: 5, y: 9 }, { x: 15, y: 9 },
-        { x: 20, y: 10 }, { x: 15, y: 11 }, { x: 5, y: 11 }
-      ];
-      const closedEyeRight = [
-        { x: 50, y: 10 }, { x: 55, y: 9 }, { x: 65, y: 9 },
-        { x: 70, y: 10 }, { x: 65, y: 11 }, { x: 55, y: 11 }
-      ];
-
-      mockDetections.landmarks.getLeftEye.mockReturnValue(closedEyeLeft);
-      mockDetections.landmarks.getRightEye.mockReturnValue(closedEyeRight);
-      
-      result = await LivenessService.processFrame(session.id, Buffer.from('img'));
-      expect(result.isLive).toBe(false);
-
-      // 3. Open Eyes Again -> Pass
-      const openEyeLeft = [
-        { x: 0, y: 10 }, { x: 5, y: 5 }, { x: 15, y: 5 },
-        { x: 20, y: 10 }, { x: 15, y: 15 }, { x: 5, y: 15 }
-      ];
-      const openEyeRight = [
-        { x: 50, y: 10 }, { x: 55, y: 5 }, { x: 65, y: 5 },
-        { x: 70, y: 10 }, { x: 65, y: 15 }, { x: 55, y: 15 }
-      ];
-      mockDetections.landmarks.getLeftEye.mockReturnValue(openEyeLeft);
-      mockDetections.landmarks.getRightEye.mockReturnValue(openEyeRight);
-
-      result = await LivenessService.processFrame(session.id, Buffer.from('img'));
-      expect(result.isLive).toBe(true);
-      expect(result.details?.blinkDetected).toBe(true);
-    });
+    it.skip('should detect blinking (feature disabled)', async () => {});
 
     it('should detect zoom in', async () => {
       // Force ZOOM_IN challenge

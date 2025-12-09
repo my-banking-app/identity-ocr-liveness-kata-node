@@ -16,7 +16,7 @@
         <div id="alert-box" class="alert hidden"></div>
 
         <div id="setup-step">
-            <p>Esta prueba validará que eres una persona real. Se te pedirá realizar una acción (Parpadear o Acercarte).</p>
+            <p>Esta prueba validará que eres una persona real. Se te pedirá acercar tu rostro a la cámara.</p>
             <button onclick="startLiveness()">Iniciar Prueba</button>
         </div>
 
@@ -59,9 +59,9 @@
                 document.getElementById('setup-step').classList.add('hidden');
                 document.getElementById('process-step').classList.remove('hidden');
                 
-                const instructionText = challenge === 'BLINK' ? '😉 PARPADEA VARIAS VECES' : '🔍 ACÉRCATE A LA CÁMARA';
+                const instructionText = ' ACÉRCATE A LA CÁMARA';
                 document.getElementById('instruction').textContent = instructionText;
-                document.getElementById('overlay').textContent = challenge;
+                document.getElementById('overlay').textContent = 'ZOOM_IN';
 
                 // 3. Start Camera
                 await startCamera();
@@ -131,20 +131,9 @@
         function updateFeedback(details) {
             const guide = document.querySelector('.face-guide');
             const feedback = document.getElementById('feedback-text');
-            
             if (details.faceDetected) {
-                // Check if we are waiting for a specific action
-                const currentChallenge = document.getElementById('overlay').textContent;
-                
-                if (details.blinkDetected) {
-                     guide.className = 'face-guide success';
-                     feedback.textContent = "¡Parpadeo detectado!";
-                } else {
-                     guide.className = 'face-guide detected';
-                     // Show score for debugging/tuning if needed, or just instructions
-                     // feedback.textContent = `Rostro detectado (${(details.score * 100).toFixed(0)}%). Esperando acción...`;
-                     feedback.textContent = currentChallenge.includes('PARPADEA') ? "Rostro detectado. Parpadea ahora." : "Rostro detectado. Acércate más.";
-                }
+                guide.className = 'face-guide detected';
+                feedback.textContent = "Rostro detectado. Acércate más.";
             } else {
                 guide.className = 'face-guide error';
                 feedback.textContent = "No se detecta rostro. Centra tu cara en el óvalo.";

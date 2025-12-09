@@ -33,9 +33,7 @@ export class LivenessService {
   }
 
   static async createSession(userId: string): Promise<LivenessSession> {
-    // Randomize challenge
-    const challenges: LivenessChallengeType[] = ['BLINK', 'ZOOM_IN'];
-    const challenge = challenges[Math.floor(Math.random() * challenges.length)];
+    const challenge: LivenessChallengeType = 'ZOOM_IN';
 
     const session: LivenessSession = {
       id: uuidv4(),
@@ -46,7 +44,6 @@ export class LivenessService {
       attempts: 0,
     };
     
-    // Initialize session state
     sessions.set(session.id, { ...session, blinkState: 'OPEN' });
     return session;
   }

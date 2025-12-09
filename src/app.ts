@@ -71,8 +71,14 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// Serve Static Files (Frontend Demo)
-app.use(express.static(path.join(__dirname, '../public')));
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/ocr', ocrRoutes);
+app.use('/api/liveness', livenessRoutes);
+app.use('/api/ml', mlRoutes);
+app.use('/api/validation', validationRoutes);
+app.use('/api/llm', llmRoutes);
+app.use('/api/audit', auditRoutes);
 
 // Logging
 app.use(
@@ -83,14 +89,7 @@ app.use(
   }),
 );
 
-// Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/ocr', ocrRoutes);
-app.use('/api/liveness', livenessRoutes);
-app.use('/api/ml', mlRoutes);
-app.use('/api/validation', validationRoutes);
-app.use('/api/llm', llmRoutes);
-app.use('/api/audit', auditRoutes);
+// Serve Static Files (Frontend Demo) after defining API and root route
 
 // Metrics Endpoint
 app.get('/metrics', async (req, res) => {
@@ -112,3 +111,6 @@ app.get('/health', (req, res) => {
 });
 
 export default app;
+ 
+// Mount static assets at the very end to avoid shadowing '/' JSON route
+app.use(express.static(path.join(__dirname, '../public')));

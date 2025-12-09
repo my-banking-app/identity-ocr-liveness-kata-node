@@ -1,5 +1,5 @@
 # Stage 1: Builder
-FROM node:18 AS builder
+FROM node:20 AS builder
 
 RUN apt-get update && apt-get install -y \
     python3 \
@@ -22,7 +22,7 @@ COPY . .
 RUN npm run build
 
 # Stage 2: Production
-FROM node:18 AS production
+FROM node:20 AS production
 
 RUN apt-get update && apt-get install -y \
     python3 \
