@@ -127,10 +127,7 @@
 <a name='L62'></a><a href='#L62'>62</a>
 <a name='L63'></a><a href='#L63'>63</a>
 <a name='L64'></a><a href='#L64'>64</a>
-<a name='L65'></a><a href='#L65'>65</a>
-<a name='L66'></a><a href='#L66'>66</a>
-<a name='L67'></a><a href='#L67'>67</a>
-<a name='L68'></a><a href='#L68'>68</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L65'></a><a href='#L65'>65</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -148,8 +145,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">4x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-yes">1x</span>
@@ -159,9 +155,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -173,7 +167,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -197,12 +190,13 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">export interface MultiFactorScores {
-  ocr_confidence: number;        // 0-100
-  liveness_score: number;        // 0-100
-  deepfake_probability: number;  // 0-100 (high prob = fake)
-  document_validity: number;     // 0-100 (from database/logic checks)
-  llm_consistency: number;       // 0-100
+  ocr_confidence: number;
+  liveness_score: number;
+  deepfake_probability: number;
+  document_validity: number;
+  llm_consistency: number;
 }
 &nbsp;
 export interface FinalScore {
@@ -211,41 +205,37 @@ export interface FinalScore {
   deepfake_probability: number;
   document_validity: number;
   llm_consistency: number;
-  final_risk_score: number;      // 0-100 (0=low risk)
+  final_risk_score: number;
   recommendation: 'approve' | 'reject' | 'review';
 }
 &nbsp;
 export class ScoringEngineService {
   static calculateFinalScore(scores: MultiFactorScores): FinalScore {
-    // Kill switch: If deepfake probability is very high, reject immediately
     if (scores.deepfake_probability &gt; 85) {
       return {
         ...scores,
         final_risk_score: 100,
-        recommendation: 'reject'
+        recommendation: 'reject',
       };
     }
 &nbsp;
-    // Weights configuration
     const weights = {
       ocr_confidence: 0.15,
       liveness_score: 0.25,
-      deepfake_probability: 0.25, // This needs to be inverted (100 - prob) for positive scoring
-      document_validity: 0.20,
-      llm_consistency: 0.15
+      deepfake_probability: 0.25,
+      document_validity: 0.2,
+      llm_consistency: 0.15,
     };
 &nbsp;
-    // Normalize deepfake to "authenticity score"
     const deepfakeAuthenticity = 100 - scores.deepfake_probability;
 &nbsp;
-    const weightedScore = 
-      (scores.ocr_confidence * weights.ocr_confidence) +
-      (scores.liveness_score * weights.liveness_score) +
-      (deepfakeAuthenticity * weights.deepfake_probability) +
-      (scores.document_validity * weights.document_validity) +
-      (scores.llm_consistency * weights.llm_consistency);
-    
-    // Risk score is inverse of weighted authenticity score
+    const weightedScore =
+      scores.ocr_confidence * weights.ocr_confidence +
+      scores.liveness_score * weights.liveness_score +
+      deepfakeAuthenticity * weights.deepfake_probability +
+      scores.document_validity * weights.document_validity +
+      scores.llm_consistency * weights.llm_consistency;
+&nbsp;
     const riskScore = 100 - weightedScore;
 &nbsp;
     let recommendation: 'approve' | 'reject' | 'review';
@@ -260,10 +250,11 @@ export class ScoringEngineService {
     return {
       ...scores,
       final_risk_score: Math.round(riskScore * 100) / 100,
-      recommendation
+      recommendation,
     };
   }
 }
+&nbsp;
 &nbsp;</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
@@ -271,7 +262,7 @@ export class ScoringEngineService {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-12-08T00:25:15.231Z
+                at 2025-12-09T23:27:40.680Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

@@ -32,13 +32,13 @@ export class LivenessService {
     }
   }
 
-  static async createSession(userId: string): Promise<LivenessSession> {
-    const challenge: LivenessChallengeType = 'ZOOM_IN';
+  static async createSession(userId: string, challenge?: LivenessChallengeType): Promise<LivenessSession> {
+    const selected: LivenessChallengeType = challenge || 'ZOOM_IN';
 
     const session: LivenessSession = {
       id: uuidv4(),
       userId,
-      challenge,
+      challenge: selected,
       status: 'PENDING',
       createdAt: new Date(),
       attempts: 0,

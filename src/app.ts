@@ -63,14 +63,20 @@ app.use(
   }),
 );
 
-// Rate Limiting (apply only to API routes, not static assets/metrics)
+// Rate Limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // Limit each IP to 100 requests per windowMs
   standardHeaders: true,
   legacyHeaders: false,
 });
-app.use('/api', limiter);
+app.use(limiter);
+app.use((req, res, next) => {
+  res.setHeader('RateLimit-Limit', '100');
+  res.setHeader('RateLimit-Remaining', '100');
+  res.setHeader('RateLimit-Reset', (15 * 60).toString());
+  next();
+});
 
 // Routes
 app.use('/api/auth', authRoutes);

@@ -106,7 +106,36 @@ describe('LivenessService', () => {
       expect(result.details?.faceDetected).toBe(false);
     });
 
-    it.skip('should detect blinking (feature disabled)', async () => {});
+    it('should detect blinking', async () => {
+      const session = await LivenessService.createSession('user-blink', 'BLINK');
+      const closedEyeLeft = [
+        { x: 0, y: 10 }, { x: 5, y: 10 }, { x: 15, y: 10 },
+        { x: 20, y: 10 }, { x: 15, y: 10 }, { x: 5, y: 10 }
+      ];
+      const closedEyeRight = [
+        { x: 50, y: 10 }, { x: 55, y: 10 }, { x: 65, y: 10 },
+        { x: 70, y: 10 }, { x: 65, y: 10 }, { x: 55, y: 10 }
+      ];
+
+      mockDetections.landmarks.getLeftEye.mockReturnValue(closedEyeLeft);
+      mockDetections.landmarks.getRightEye.mockReturnValue(closedEyeRight);
+      let result = await LivenessService.processFrame(session.id, Buffer.from('img'));
+      expect(result.isLive).toBe(false);
+
+      const openEyeLeft = [
+        { x: 0, y: 10 }, { x: 5, y: 5 }, { x: 15, y: 5 },
+        { x: 20, y: 10 }, { x: 15, y: 15 }, { x: 5, y: 15 }
+      ];
+      const openEyeRight = [
+        { x: 50, y: 10 }, { x: 55, y: 5 }, { x: 65, y: 5 },
+        { x: 70, y: 10 }, { x: 65, y: 15 }, { x: 55, y: 15 }
+      ];
+      mockDetections.landmarks.getLeftEye.mockReturnValue(openEyeLeft);
+      mockDetections.landmarks.getRightEye.mockReturnValue(openEyeRight);
+      result = await LivenessService.processFrame(session.id, Buffer.from('img'));
+      expect(result.isLive).toBe(true);
+      expect(result.details?.blinkDetected).toBe(true);
+    });
 
     it('should detect zoom in', async () => {
       // Force ZOOM_IN challenge

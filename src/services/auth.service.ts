@@ -7,6 +7,7 @@ import { CryptoService } from './crypto.service';
 // Mock database
 const users: IUser[] = [];
 const refreshTokens: string[] = []; // In a real app, store this in DB/Redis
+const revokedTokens = new Set<string>();
 
 export class AuthService {
   static async register(userData: any): Promise<IUser> {
@@ -65,7 +66,7 @@ export class AuthService {
   }
 
   static async refreshToken(token: string): Promise<string> {
-    if (!refreshTokens.includes(token)) {
+    if (revokedTokens.has(token) || !refreshTokens.includes(token)) {
       throw new Error('Invalid refresh token');
     }
 
@@ -90,6 +91,7 @@ export class AuthService {
     if (index > -1) {
       refreshTokens.splice(index, 1);
     }
+    revokedTokens.add(token);
   }
 
   private static generateAccessToken(user: IUser): string {
