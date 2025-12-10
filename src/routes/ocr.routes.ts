@@ -3,7 +3,7 @@ import multer from 'multer';
 import { OCRController } from '../controllers/ocr.controller';
 import { authenticateToken } from '../middleware/auth.middleware';
 import { ocrConfig } from '../config/ocr.config';
-import path from 'path';
+import path from 'node:path';
 import { v4 as uuidv4 } from 'uuid';
 
 const router = Router();

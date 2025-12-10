@@ -2,7 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import { MLController } from '../controllers/ml.controller';
 import { authenticateToken } from '../middleware/auth.middleware';
-import path from 'path';
+import path from 'node:path';
 
 const router = Router();
 

@@ -1,4 +1,4 @@
-import { config } from './env';
+ 
 
 export const ocrConfig = {
   supportedLanguages: ['eng', 'spa'],

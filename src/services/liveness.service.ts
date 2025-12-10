@@ -1,9 +1,8 @@
 import * as faceapi from 'face-api.js';
 import { Canvas, Image, ImageData, loadImage } from 'canvas';
-import * as tf from '@tensorflow/tfjs';
-import path from 'path';
+import path from 'node:path';
 import { v4 as uuidv4 } from 'uuid';
-import { LivenessSession, LivenessChallengeType, FaceAnalysisResult, Point } from '../types/liveness.types';
+import { LivenessSession, LivenessChallengeType, FaceAnalysisResult } from '../types/liveness.types';
 import logger from '../utils/logger';
 
 // Configure face-api environment
@@ -32,13 +31,12 @@ export class LivenessService {
     }
   }
 
-  static async createSession(userId: string, challenge?: LivenessChallengeType): Promise<LivenessSession> {
-    const selected: LivenessChallengeType = challenge || 'ZOOM_IN';
+  static async createSession(userId: string, challenge: LivenessChallengeType = 'ZOOM_IN'): Promise<LivenessSession> {
 
     const session: LivenessSession = {
       id: uuidv4(),
       userId,
-      challenge: selected,
+      challenge,
       status: 'PENDING',
       createdAt: new Date(),
       attempts: 0,
@@ -81,7 +79,6 @@ export class LivenessService {
       const avgEAR = (leftEAR + rightEAR) / 2;
 
       // Blink detection logic
-      // EAR threshold: < 0.2 usually indicates closed eyes
       const isEyesClosed = avgEAR < 0.25;
 
       // console.log(`[Liveness Debug] Session: ${sessionId}, Challenge: ${session.challenge}, BlinkState: ${session.blinkState}, avgEAR: ${avgEAR}, isEyesClosed: ${isEyesClosed}`);
@@ -91,13 +88,10 @@ export class LivenessService {
       if (session.challenge === 'BLINK') {
         if (session.blinkState === 'OPEN' && isEyesClosed) {
           session.blinkState = 'CLOSED';
-          // console.log(`[Liveness Debug] Transitioned to CLOSED`);
         } else if (session.blinkState === 'CLOSED' && !isEyesClosed) {
-           // Transition Closed -> Open: Blink Completed
            session.status = 'PASSED';
            session.blinkState = 'OPEN';
            blinkDetected = true;
-           // console.log(`[Liveness Debug] Transitioned to OPEN (PASSED)`);
         }
       }
 
@@ -111,7 +105,6 @@ export class LivenessService {
         }
 
         const growth = area / session.initialFaceArea;
-        // Require 30% increase
         if (growth > 1.3) {
            session.status = 'PASSED';
         }
@@ -136,7 +129,6 @@ export class LivenessService {
   }
 
   private static calculateEAR(eye: faceapi.Point[]): number {
-    // EAR = (|p2 - p6| + |p3 - p5|) / (2 * |p1 - p4|)
     // Indices in eye array (0-5):
     // p1: 0 (left corner)
     // p2: 1 (top-left)
@@ -156,7 +148,7 @@ export class LivenessService {
     const vertical2 = this.euclideanDistance(p3, p5);
     const horizontal = this.euclideanDistance(p1, p4);
 
-    return (vertical1 + vertical2) / (2.0 * horizontal);
+    return (vertical1 + vertical2) / (2 * horizontal);
   }
 
   private static euclideanDistance(p1: faceapi.Point, p2: faceapi.Point): number {

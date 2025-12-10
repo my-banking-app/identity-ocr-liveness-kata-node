@@ -14,7 +14,12 @@ export class ValidationController {
 
     const result = await DocumentRepositoryService.validateDocument(documentNumber, 'cedula');
     try {
-      const labelResult = result.source === 'BLACKLIST' ? 'blacklisted' : (result.isValid ? 'valid' : 'invalid');
+      let labelResult: string;
+      if (result.source === 'BLACKLIST') {
+        labelResult = 'blacklisted';
+      } else {
+        labelResult = result.isValid ? 'valid' : 'invalid';
+      }
       documentValidationCounter.labels('cedula', labelResult).inc();
       AuditService.logBusinessEvent({
         action: 'DOCUMENT_VALIDATION',
@@ -24,7 +29,9 @@ export class ValidationController {
         details: { documentNumber, status: result.isValid ? 'VALID' : 'INVALID', source: result.source, reason: (result as any).details?.reason || (typeof (result as any).details === 'string' ? (result as any).details : undefined) },
         sensitive: true,
       });
-    } catch {}
+    } catch (e) {
+      logger.error('Document validation metrics/audit error', e);
+    }
     res.json(result);
   }
 

@@ -1,6 +1,6 @@
 import * as tf from '@tensorflow/tfjs';
-import * as fs from 'fs';
-import path from 'path';
+import * as fs from 'node:fs';
+import path from 'node:path';
 import sharp from 'sharp';
 import { DeepfakeAnalysisResult } from '../../types/ml.types';
 import logger from '../../utils/logger';
@@ -35,14 +35,13 @@ export class DeepfakeDetectionService {
       if (!this.isModelLoaded) await this.initialize();
 
       // Use Sharp for decoding and resizing
-      const { data, info } = await sharp(imageBuffer)
+      const { data } = await sharp(imageBuffer)
         .resize(224, 224, { fit: 'fill' })
-        .removeAlpha() // Ensure 3 channels
+        .removeAlpha()
         .raw()
         .toBuffer({ resolveWithObject: true });
 
       let score = 0;
-      let isReal = true;
       const artifacts: string[] = [];
 
       // Manual heuristic calculation to avoid TensorFlow version conflicts (tfjs-node vs face-api.js)
@@ -61,13 +60,12 @@ export class DeepfakeDetectionService {
       
       // Heuristic: Real photos usually have a certain range of contrast/variance
       // Too low = blurry/flat (potential fake/screen replay)
-      if (std < 40) { // Adjusted threshold
-          score = 0.4;
-          isReal = false;
-          artifacts.push('Low variance (potential blur/screen)');
+      const isReal = std >= 40;
+      if (!isReal) {
+        score = 0.4;
+        artifacts.push('Low variance (potential blur/screen)');
       } else {
-          score = 0.85 + (Math.random() * 0.14);
-          isReal = true;
+        score = 0.85 + (Math.random() * 0.14);
       }
 
       return {

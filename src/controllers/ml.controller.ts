@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { DeepfakeDetectionService } from '../ml/services/deepfakeDetection.service';
-import fs from 'fs';
+import fs from 'node:fs';
 import logger from '../utils/logger';
 
 export class MLController {
@@ -26,7 +26,7 @@ export class MLController {
     } catch (error: any) {
       logger.error('Deepfake detection controller error', error);
       if (req.file && fs.existsSync(req.file.path)) {
-         try { fs.unlinkSync(req.file.path); } catch (e) {}
+         try { fs.unlinkSync(req.file.path); } catch (e) { logger.error('Failed to cleanup uploaded file', e); }
       }
       res.status(500).json({ error: error.message });
     }

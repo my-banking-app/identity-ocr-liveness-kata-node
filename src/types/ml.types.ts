@@ -1,5 +1,3 @@
-import * as tf from '@tensorflow/tfjs';
-
 export interface DeepfakeAnalysisResult {
   isReal: boolean;
   score: number; // 0-1 (0 = Fake, 1 = Real)

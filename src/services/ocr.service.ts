@@ -40,13 +40,13 @@ export class OCRService {
     
     // Document Number (e.g., Colombian CC is often just numbers, 6-10 digits)
     // 1. Try finding with prefix (C.C., NUIP, etc.)
-    let idMatch = text.match(/(?:C\.?C\.?|NUIP|NUMERO)\.?\s*([\d\.]+)/i);
+    let idMatch = text.match(/(?:C\.?C\.?|NUIP|NUMERO)\.?\s*([\d.]+)/i);
     
     // 2. Fallback: Look for the specific pattern of a Colombian ID (e.g. 1.022.954.370)
     if (!idMatch) {
         // We use a looser regex that allows spaces or dots between digits to catch "1 . 022" cases
         // Capture a sequence that starts and ends with a digit, contains digits/dots/spaces
-        const potentialMatches = text.matchAll(/(?:\b|\D)([\d][\d\.\s]{5,}[\d])(?:\b|\D)/g);
+        const potentialMatches = text.matchAll(/(?:\b|\D)([\d][\d.\s]{5,}[\d])(?:\b|\D)/g);
         
         for (const match of potentialMatches) {
             const raw = match[1];
@@ -75,10 +75,7 @@ export class OCRService {
         data.documentNumber = idMatch[1].replaceAll(/[^\d]/g, '');
     }
 
-    // Name - Very hard without strict template, looking for uppercase lines
-    // This is a placeholder logic
-    const lines = text.split('\n').filter(l => l.trim().length > 0);
-    // data.rawLines = lines; // For debugging
+    
 
     // Date of Birth (DD/MM/YYYY or similar)
     const dateMatch = text.match(/(\d{2}[-./]\d{2}[-./]\d{4})/);
