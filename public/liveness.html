@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Liveness Check - Identity Demo</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container" style="max-width: 600px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2>Autenticación · Paso 2/2 (Liveness)</h2>
+            <button onclick="window.location.href='/dashboard.html'" style="width: auto; padding: 5px 10px;">Volver</button>
+        </div>
+
+        <div id="alert-box" class="alert hidden"></div>
+
+        <div id="setup-step">
+            <p>Esta prueba validará que eres una persona real. Se te pedirá acercar tu rostro a la cámara.</p>
+            <button onclick="startLiveness()">Iniciar Prueba</button>
+        </div>
+
+        <div id="process-step" class="hidden">
+            <div id="video-container">
+                <video id="video" autoplay playsinline muted></video>
+                <div class="guide-overlay face-guide"></div>
+                <div id="feedback-text">Posiciona tu rostro en el óvalo</div>
+                <div id="overlay">Inicializando...</div>
+            </div>
+            <p id="instruction" style="text-align: center; font-size: 1.2rem; font-weight: bold; margin-top: 15px;">Esperando...</p>
+        </div>
+
+        <div id="result-step" class="hidden">
+            <div id="final-result-card" style="text-align: center;">
+                <!-- Content injected by JS -->
+            </div>
+            <button onclick="location.reload()" style="margin-top: 20px;">Intentar de nuevo</button>
+        </div>
+    </div>
+
+    <script src="utils.js"></script>
+    <script>
+        Utils.checkAuth();
+        try {
+            const hasDoc = !!localStorage.getItem('lastDocImage');
+            if (!hasDoc) {
+                Utils.showSuccess('alert-box', 'Modo demo: sin documento. Solo se validará la prueba de vida.');
+            }
+        } catch {}
+
+        let sessionId = null;
+        let stream = null;
+        let intervalId = null;
+        let timeoutId = null;
+        let isProcessing = false;
+
+        async function startLiveness() {
+            try {
+                // 1. Start Session
+                const data = await Utils.request('/liveness/start-session', 'POST', {});
+                sessionId = data.sessionId;
+                const challenge = data.challenge;
+
+                // 2. Setup UI
+                document.getElementById('setup-step').classList.add('hidden');
+                document.getElementById('process-step').classList.remove('hidden');
+                
+                const instructionText = ' ACÉRCATE A LA CÁMARA';
+                document.getElementById('instruction').textContent = instructionText;
+                document.getElementById('overlay').textContent = 'ZOOM_IN';
+
+                // 3. Start Camera
+                await startCamera();
+
+                // 4. Start Processing Loop
+                intervalId = setInterval(processFrame, 500); // Check every 500ms
+
+                // 5. Set Timeout (20 seconds)
+                timeoutId = setTimeout(() => {
+                    finishFail("Tiempo agotado. No se detectó la acción requerida.");
+                }, 20000);
+
+            } catch (error) {
+                Utils.showError('alert-box', error.message);
+            }
+        }
+
+        async function startCamera() {
+            const video = document.getElementById('video');
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+            } catch (err) {
+                console.error("Error accessing camera", err);
+                Utils.showError('alert-box', "No se pudo acceder a la cámara.");
+            }
+        }
+
+        async function processFrame() {
+            if (isProcessing) return;
+            isProcessing = true;
+
+            const video = document.getElementById('video');
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0);
+
+            canvas.toBlob(async (blob) => {
+                if (!blob) {
+                    isProcessing = false;
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('sessionId', sessionId);
+                formData.append('frame', blob, 'frame.jpg');
+
+                try {
+                    const data = await Utils.request('/liveness/validate-frame', 'POST', formData, true);
+                    
+                    if (data.result && data.result.isLive) {
+                        finishSuccess(data.result);
+                    } else if (data.result && data.result.details) {
+                        updateFeedback(data.result.details);
+                    }
+
+                } catch (error) {
+                    console.error("Frame processing error", error);
+                } finally {
+                    isProcessing = false;
+                }
+            }, 'image/jpeg');
+        }
+
+        function updateFeedback(details) {
+            const guide = document.querySelector('.face-guide');
+            const feedback = document.getElementById('feedback-text');
+            if (details.faceDetected) {
+                guide.className = 'face-guide detected';
+                feedback.textContent = "Rostro detectado. Acércate más.";
+            } else {
+                guide.className = 'face-guide error';
+                feedback.textContent = "No se detecta rostro. Centra tu cara en el óvalo.";
+            }
+        }
+
+        function stopProcessing() {
+            clearInterval(intervalId);
+            clearTimeout(timeoutId);
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+        }
+
+        function finishSuccess(result) {
+            stopProcessing();
+
+            document.getElementById('process-step').classList.add('hidden');
+            document.getElementById('result-step').classList.remove('hidden');
+            
+            const card = document.getElementById('final-result-card');
+            const base = {
+                liveness: { passed: true, score: (result.score * 100).toFixed(2) },
+                doc: getStored('lastDocValidation'),
+            };
+            card.innerHTML = buildIdentityCard(base, null);
+
+            // Intentar comparación facial contra documento
+            try {
+                const docDataURL = localStorage.getItem('lastDocImage');
+                if (docDataURL) {
+                    const liveBlob = captureCurrentFrame();
+                    const docBlob = dataURLToBlob(docDataURL);
+                    const fd = new FormData();
+                    fd.append('doc', docBlob, 'doc.jpg');
+                    fd.append('live', liveBlob, 'live.jpg');
+                    card.innerHTML = buildIdentityCard(base, { match: null, pending: true });
+                    Utils.request('/validation/face-match', 'POST', fd, true).then((fm) => {
+                        const updated = buildIdentityCard(base, fm);
+                        card.innerHTML = updated;
+                    }).catch(() => {
+                        card.innerHTML = buildIdentityCard(base, { match: null, error: 'FACE_MATCH_ERROR' });
+                    });
+                } else {
+                    card.innerHTML = buildIdentityCard(base, { match: null, error: 'DOC_IMAGE_MISSING' });
+                }
+            } catch {}
+        }
+
+        function finishFail(reason) {
+            stopProcessing();
+
+            document.getElementById('process-step').classList.add('hidden');
+            document.getElementById('result-step').classList.remove('hidden');
+
+            const card = document.getElementById('final-result-card');
+            const base = { liveness: { passed: false, reason } };
+            card.innerHTML = buildIdentityCard(base, null);
+
+            try {
+                Utils.request('/liveness/finalize','POST', { sessionId, reason });
+            } catch {}
+        }
+
+        function captureCurrentFrame() {
+            const video = document.getElementById('video');
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0);
+            const blob = canvasToBlobSync(canvas);
+            return blob;
+        }
+
+        function canvasToBlobSync(canvas) {
+            // Create a synchronous blob via dataURL for simplicity
+            const dataURL = canvas.toDataURL('image/jpeg', 0.9);
+            return dataURLToBlob(dataURL);
+        }
+
+        function dataURLToBlob(dataURL) {
+            const parts = dataURL.split(',');
+            const mime = parts[0].match(/:(.*?);/)[1];
+            const bstr = atob(parts[1]);
+            let n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            while (n--) {
+              u8arr[n] = bstr.charCodeAt(n);
+            }
+            return new Blob([u8arr], { type: mime });
+        }
+
+        function getStored(key) {
+            try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : null; } catch { return null; }
+        }
+
+        function buildIdentityCard(base, fm) {
+            const docStatus = base.doc ? (base.doc.status || (base.doc.isValid ? 'VALID' : 'INVALID')) : '-';
+            const livenessPassed = !!(base.liveness && base.liveness.passed);
+            const fmMatch = fm ? fm.match : null;
+            const reasons = [];
+            if (!livenessPassed) reasons.push(base.liveness.reason || 'Fallo en prueba de vida');
+            if (docStatus === 'INVALID') reasons.push('Documento inválido');
+            if (base.doc && base.doc.source === 'BLACKLIST') reasons.push('Documento en lista negra');
+            if (fm && fm.reason === 'FACE_NOT_DETECTED') reasons.push('Rostro no detectado en imágenes');
+            if (fm && fm.error === 'DOC_IMAGE_MISSING') reasons.push('Sin imagen de documento');
+            if (fm && fm.error === 'FACE_MATCH_ERROR') reasons.push('Error en comparación facial');
+            if (fmMatch === false) reasons.push('Rostro no coincide con documento');
+            const success = livenessPassed && (base.doc ? (docStatus === 'VALID') : true) && fmMatch !== false;
+            const headerClass = success ? 'success' : (reasons.length ? 'error' : 'warning');
+            const headerTitle = success ? 'Identidad Verificada' : (reasons.length ? 'Identidad No Verificada' : 'Verificación Parcial');
+            const headerIcon = success ? '✅' : (reasons.length ? '❌' : '⚠️');
+            const docLabelColor = base.doc ? (docStatus === 'VALID' ? '#00C851' : (docStatus === 'INVALID' ? '#ff4444' : '#FF8800')) : '#666';
+            const fmColor = fm && fm.pending ? '#FF8800' : (fmMatch === null ? '#FF8800' : (fmMatch ? '#00C851' : '#ff4444'));
+            const fmText = fm && fm.pending ? 'EN PROCESO…' : (fmMatch === null ? 'NO DISPONIBLE' : (fmMatch ? 'COINCIDE' : 'NO COINCIDE'));
+            const livenessText = livenessPassed ? `OK (${base.liveness.score}%)` : 'FALLÓ';
+            const reasonsHtml = reasons.length ? `<div class="info-row"><span class="info-label">Causas:</span><span class="info-value">${reasons.join('; ')}</span></div>` : '';
+            const docHtml = base.doc ? `<div class="info-row"><span class="info-label">Documento:</span><span class="info-value" style="color:${docLabelColor}">${docStatus}</span></div>` : '';
+            return `
+                <div class="result-card">
+                    <div class="result-header ${headerClass}">
+                        <span class="result-icon">${headerIcon}</span>
+                        <h3 class="result-title">${headerTitle}</h3>
+                    </div>
+                    <div class="result-body">
+                        ${docHtml}
+                        <div class="info-row"><span class="info-label">Prueba de vida:</span><span class="info-value">${livenessText}</span></div>
+                        <div class="info-row"><span class="info-label">Comparación facial:</span><span class="info-value" style="color:${fmColor}">${fmText}${fm && fm.score !== undefined ? ` (${(fm.score * 100).toFixed(1)}%)` : ''}</span></div>
+                        ${reasonsHtml}
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Identity Demo</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container" style="max-width: 800px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h1>Dashboard</h1>
+            <button onclick="Utils.logout()" style="width: auto; background-color: #dc3545;">Cerrar Sesión</button>
+        </div>
+        
+        <p>Bienvenido, <span id="user-name" style="font-weight: bold;">User</span></p>
+        
+        <div class="nav-grid">
+            <div class="nav-card" onclick="window.location.href='/ocr.html'">
+                <h2>Autenticación Completa</h2>
+                <p>Documento + OCR + Prueba de vida + Comparación facial.</p>
+            </div>
+
+            <div class="nav-card" onclick="window.location.href='/monitor.html'">
+                <h2>Monitoreo</h2>
+                <p>Logs cifrados y métricas: éxito, fallos y razones.</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="utils.js"></script>
+    <script>
+        const user = Utils.checkAuth();
+        document.getElementById('user-name').textContent = user.name;
+    </script>
+</body>
+</html>

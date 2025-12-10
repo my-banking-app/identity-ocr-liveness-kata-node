@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monitoreo</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container" style="max-width: 900px;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <h2>Monitoreo de Autenticación</h2>
+      <button onclick="window.location.href='/dashboard.html'" style="width:auto;">Volver</button>
+    </div>
+    <div id="alert-box" class="alert hidden"></div>
+
+    <div class="result-card">
+      <div class="result-header warning">
+        <span class="result-icon">📊</span>
+        <h3 class="result-title">Resumen de Métricas</h3>
+      </div>
+      <div class="result-body" id="metrics-body">
+        <div class="info-row"><span class="info-label">Liveness:</span><span class="info-value" id="lvn-rate">-</span></div>
+        <div class="info-row"><span class="info-label">Documentos válidos:</span><span class="info-value" id="doc-valid">-</span></div>
+        <div class="info-row"><span class="info-label">Documentos inválidos:</span><span class="info-value" id="doc-invalid">-</span></div>
+        <div class="info-row"><span class="info-label">En lista negra:</span><span class="info-value" id="doc-blacklist">-</span></div>
+      </div>
+    </div>
+
+    <div class="result-card" style="margin-top:16px;">
+      <div class="result-header warning">
+        <span class="result-icon">🧾</span>
+        <h3 class="result-title">Últimos Logs</h3>
+      </div>
+      <div class="result-body">
+        <div id="logs-table-wrapper" style="max-height:320px; overflow:auto;">
+          <table id="logs-table" style="width:100%; border-collapse: collapse;">
+            <thead>
+              <tr>
+                <th style="text-align:left; padding:6px;">Fecha</th>
+                <th style="text-align:left; padding:6px;">Usuario</th>
+                <th style="text-align:left; padding:6px;">Acción</th>
+                <th style="text-align:left; padding:6px;">Resultado</th>
+                <th style="text-align:left; padding:6px;">Fuente</th>
+                <th style="text-align:left; padding:6px;">Motivo</th>
+              </tr>
+            </thead>
+            <tbody id="logs-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="utils.js"></script>
+  <script>
+    Utils.checkAuth();
+
+    function parseMetrics(text) {
+      const lines = text.split('\n').filter(l => l && !l.startsWith('#'));
+      const metrics = {};
+      for (const l of lines) {
+        const m = l.match(/^(\w+)(\{.*\})?\s+(\d+(?:\.\d+)?)/);
+        if (!m) continue;
+        const name = m[1];
+        const labelsStr = m[2] || '';
+        const value = parseFloat(m[3]);
+        const labels = {};
+        labelsStr.replace(/[{}\s]/g,'').split(',').forEach(kv => {
+          if (!kv) return; const [k,v] = kv.split('='); labels[k] = (v||'').replace(/"/g,'');
+        });
+        if (!metrics[name]) metrics[name] = [];
+        metrics[name].push({ labels, value });
+      }
+      return metrics;
+    }
+
+    async function loadMetrics() {
+      try {
+        const res = await fetch('/metrics');
+        const text = await res.text();
+        const m = parseMetrics(text);
+        const lvn = (m['liveness_check_total']||[]);
+        const passed = lvn.filter(x=>x.labels.result==='passed').reduce((a,b)=>a+b.value,0);
+        const failed = lvn.filter(x=>x.labels.result==='failed').reduce((a,b)=>a+b.value,0);
+        const total = passed+failed;
+        const rate = total? Math.round((passed/total)*100): 0;
+        document.getElementById('lvn-rate').textContent = `${rate}% éxito (${passed}/${total})`;
+
+        const dv = (m['document_validation_total']||[]);
+        const dvValid = dv.filter(x=>x.labels.result==='valid').reduce((a,b)=>a+b.value,0);
+        const dvInvalid = dv.filter(x=>x.labels.result==='invalid').reduce((a,b)=>a+b.value,0);
+        const dvBlacklist = dv.filter(x=>x.labels.result==='blacklisted').reduce((a,b)=>a+b.value,0);
+        document.getElementById('doc-valid').textContent = dvValid;
+        document.getElementById('doc-invalid').textContent = dvInvalid;
+        document.getElementById('doc-blacklist').textContent = dvBlacklist;
+      } catch (e) {
+        Utils.showError('alert-box', 'No se pudieron cargar métricas');
+      }
+    }
+
+    function friendlySource(s){
+      if(!s) return '—';
+      if(s==='LOCAL_DB') return 'Base local';
+      if(s==='EXTERNAL_ENTITY') return 'Entidad externa';
+      if(s==='BLACKLIST') return 'Lista negra';
+      if(s==='LIVENESS') return 'Prueba de vida';
+      return s;
+    }
+
+    function friendlyAction(a){
+      if(a==='DOCUMENT_VALIDATION') return 'Validación de documento';
+      if(a==='LIVENESS_START') return 'Inicio prueba de vida';
+      if(a==='LIVENESS_PASSED') return 'Prueba de vida aprobada';
+      if(a==='LIVENESS_FAIL') return 'Prueba de vida fallida';
+      return a || '—';
+    }
+
+    function friendlyReason(k, text){
+      if(k==='FORMAT_INVALID') return 'Formato de documento inválido';
+      if(k==='BLACKLIST') return 'Usuario reportado (lista negra)';
+      if(k==='DB_INVALID') return 'Usuario reportado (registro interno)';
+      if(k==='EXTERNAL_INVALID') return 'Datos no coinciden con entidad externa';
+      if(k==='VALID') return 'Usuario válido';
+      if(k==='NO_FACE') return 'No se detectó rostro';
+      if(k==='INCOMPLETE_ACTION') return 'Acción incompleta (acercamiento insuficiente)';
+      if(k==='LIVENESS_OK') return 'Prueba de vida superada';
+      return text || '—';
+    }
+
+    function normalizeLog(entry) {
+      if (typeof entry === 'string') return null;
+      const ts = entry.timestamp || entry.time || '';
+      const meta = entry || {};
+      const userId = (meta.userId || (meta.meta && meta.meta.userId) || (meta.details && meta.details.userId) || '—');
+      const action = (meta.action || (meta.message && meta.message.split(':')[0]) || '—');
+      const result = (meta.result || (meta.level === 'error' ? 'FAILURE' : 'SUCCESS') || '—');
+      const d = meta.details || {};
+      let source = (d && d.source) || (meta.source) || '—';
+      let reasonText = '—';
+      let reasonKey = '—';
+
+      if (action === 'DOCUMENT_VALIDATION') {
+        if (result === 'SUCCESS') {
+          reasonText = `Válido por ${source || 'desconocido'}`;
+          reasonKey = 'VALID';
+        } else {
+          if (source === 'BLACKLIST') {
+            reasonText = `Lista negra: ${d.reason || 'reportado'}`;
+            reasonKey = 'BLACKLIST';
+          } else if (typeof d === 'string') {
+            reasonText = d;
+            reasonKey = d.toLowerCase().includes('format') ? 'FORMAT_INVALID' : 'VALIDATION_FAILED';
+          } else if (d.status && d.status !== 'valid') {
+            reasonText = `DB: ${d.status}`;
+            reasonKey = 'DB_INVALID';
+          } else if (d.status) {
+            reasonText = `Externo: ${d.status}`;
+            reasonKey = 'EXTERNAL_INVALID';
+          } else {
+            reasonText = 'Validación externa inválida';
+            reasonKey = 'EXTERNAL_INVALID';
+          }
+        }
+      } else if (action === 'LIVENESS_FAIL') {
+        const r = d.reason || 'UNKNOWN';
+        source = 'LIVENESS';
+        reasonKey = r;
+        reasonText = r === 'NO_FACE' ? 'No se detectó rostro' : (r === 'INCOMPLETE_ACTION' ? 'Acción incompleta' : r);
+      } else if (action === 'LIVENESS_PASSED') {
+        source = 'LIVENESS';
+        reasonKey = 'LIVENESS_OK';
+        reasonText = 'OK acercamiento';
+      }
+
+      const actionText = friendlyAction(action);
+      const sourceText = friendlySource(source);
+      const motiveText = friendlyReason(reasonKey, reasonText);
+      return { ts, userId, actionText, result, sourceText, motiveText, reasonKey };
+    }
+
+    async function loadLogs() {
+      try {
+        const data = await Utils.request('/audit/logs','GET');
+        const rows = [];
+        const reasonsCount = {};
+        (data.logs||[]).forEach(entry => {
+          const n = normalizeLog(entry);
+          if (!n) return;
+          if (n.actionText && n.actionText !== '—') {
+            rows.push(n);
+            if (n.result === 'FAILURE' && n.reasonKey && n.reasonKey !== '—') {
+              reasonsCount[n.reasonKey] = (reasonsCount[n.reasonKey]||0)+1;
+            }
+          }
+        });
+        // render table
+        const tbody = document.getElementById('logs-tbody');
+        tbody.innerHTML = '';
+        rows.slice(-100).reverse().forEach(r => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td style="padding:6px; border-top:1px solid #eee;">${r.ts}</td>
+                          <td style="padding:6px; border-top:1px solid #eee;">${r.userId}</td>
+                          <td style="padding:6px; border-top:1px solid #eee;">${r.actionText}</td>
+                          <td style="padding:6px; border-top:1px solid #eee; color:${r.result==='SUCCESS'?'#00C851':'#ff4444'}">${r.result}</td>
+                          <td style="padding:6px; border-top:1px solid #eee;">${r.sourceText}</td>
+                          <td style="padding:6px; border-top:1px solid #eee;">${r.motiveText}</td>`;
+          tbody.appendChild(tr);
+        });
+        // summary removed per request
+      } catch (e) {
+        Utils.showError('alert-box', 'No se pudieron cargar logs');
+      }
+    }
+
+    loadMetrics();
+    loadLogs();
+    setInterval(loadMetrics, 5000);
+  </script>
+</body>
+</html>
